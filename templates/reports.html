@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <div class="profile-tabs">
+        <a href="{{ url_for('reports', tab='cards') }}"
+           class="profile-tab {% if active_tab == 'cards' %}active{% endif %}">Report Cards</a>
+        <a href="{{ url_for('reports', tab='published') }}"
+           class="profile-tab {% if active_tab == 'published' %}active{% endif %}">Published</a>
+    </div>
+
+    <div class="profiles-toolbar">
+        <div class="profiles-title">
+            <p class="profiles-heading">All {{ "Published" if active_tab == "published" else "Report Cards" }}</p>
+            <span class="count-badge">{{ records|length }}</span>
+        </div>
+
+        <div class="profiles-actions">
+            <form class="search-box" method="get" action="{{ url_for('reports') }}">
+                <i class="ti ti-search"></i>
+                <input type="hidden" name="tab" value="{{ active_tab }}">
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <input type="search" name="q" value="{{ search_query }}" placeholder="Search">
+            </form>
+            <form class="sort-box" method="get" action="{{ url_for('reports') }}">
+                <input type="hidden" name="tab" value="{{ active_tab }}">
+                {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+                <label for="report-sort">Sort by</label>
+                <select id="report-sort" name="sort" onchange="this.form.submit()">
+                    {% for option in sort_options %}
+                        <option value="{{ option.value }}" {% if sort == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            {% if active_tab == 'cards' %}
+                <button type="button" class="primary-btn" onclick="openModal('generateReportModal')">
+                    <i class="ti ti-plus"></i> Generate report
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="profiles-table-wrap">
+        <table class="profiles-table">
+            <thead>
+                {% if active_tab == 'published' %}
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Date publish</th>
+                        <th>Generated</th>
+                        <th class="col-action">Actions</th>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <th>Class</th>
+                        <th>Type</th>
+                        <th>Date and time created</th>
+                        <th>Status</th>
+                        <th>Generated</th>
+                        <th class="col-action">Actions</th>
+                    </tr>
+                {% endif %}
+            </thead>
+            <tbody>
+                {% for r in records %}
+                    <tr>
+                        <td class="name-cell">{{ r.class_name }}</td>
+                        <td>{{ r.report_type }}</td>
+                        <td>{{ r.published_at if active_tab == 'published' else r.created_at }}</td>
+                        {% if active_tab != 'published' %}
+                            <td>
+                                <span class="status-badge {% if r.status == 'Generated' %}status-active{% else %}status-pending{% endif %}">
+                                    {{ r.status }}
+                                </span>
+                            </td>
+                        {% endif %}
+                        <td>
+                            <button type="button" class="link-btn"
+                                    data-report-action="preview"
+                                    data-record="{{ r|tojson|forceescape }}">
+                                {{ r.generated_count }}
+                            </button>
+                        </td>
+                        <td class="col-action">
+                            <div class="row-actions">
+                                {% if active_tab == 'cards' %}
+                                    <button type="button" class="icon-btn" title="View"
+                                            data-report-action="preview"
+                                            data-record="{{ r|tojson|forceescape }}"><i class="ti ti-eye"></i></button>
+                                    <button type="button" class="icon-btn icon-btn-danger" title="Delete"
+                                            data-report-action="delete"
+                                            data-form-id="report-delete-form-{{ r.id }}"
+                                            data-label="{{ r.class_name }}"><i class="ti ti-trash"></i></button>
+                                    <button type="button" class="icon-btn" title="Publish"
+                                            data-report-action="publish"
+                                            data-record="{{ r|tojson|forceescape }}"><i class="ti ti-send"></i></button>
+                                    <form id="report-delete-form-{{ r.id }}" action="{{ url_for('delete_report', report_id=r.id) }}" method="post" hidden>
+                                        <input type="hidden" name="tab" value="cards">
+                                    </form>
+                                {% else %}
+                                    <button type="button" class="icon-btn icon-btn-danger" title="Delete"
+                                            data-report-action="delete"
+                                            data-form-id="published-delete-form-{{ r.id }}"
+                                            data-label="{{ r.class_name }}"><i class="ti ti-trash"></i></button>
+                                    <form id="published-delete-form-{{ r.id }}" action="{{ url_for('delete_report', report_id=r.id) }}" method="post" hidden>
+                                        <input type="hidden" name="tab" value="published">
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="modal-overlay" id="generateReportModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <p class="form-heading">Generate report</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('generateReportModal')"></i>
+            </div>
+            <form class="modal-form" action="{{ url_for('generate_report') }}" method="post">
+                <div class="form-group">
+                    <label class="form-label" for="report-type">Type</label>
+                    <select class="form-input" id="report-type" name="report_type">
+                        <option value="">Choose type</option>
+                        {% for type in report_types %}<option value="{{ type }}">{{ type }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="report-class-scope">Classes</label>
+                    <select class="form-input" id="report-class-scope" name="class_scope">
+                        <option value="">Choose class group</option>
+                        {% for scope in class_scopes %}<option value="{{ scope }}">{{ scope }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" onclick="closeModal('generateReportModal')">Cancel</button>
+                    <button type="submit" class="primary-btn"><i class="ti ti-check"></i> Generate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="publishReportModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <p class="form-heading">Publish report</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('publishReportModal')"></i>
+            </div>
+            <form class="modal-form" id="publishReportForm" method="post">
+                <label class="checkbox-row form-group">
+                    <input type="checkbox" name="publish_here" checked>
+                    <span>Publish here only</span>
+                </label>
+                <label class="checkbox-row form-group">
+                    <input type="checkbox" name="publish_sms">
+                    <span>Publish to SMS</span>
+                </label>
+                <label class="checkbox-row form-group">
+                    <input type="checkbox" id="publish-email-toggle" name="publish_email">
+                    <span>Publish to email</span>
+                </label>
+                <div class="form-group" id="publish-email-field" hidden>
+                    <label class="form-label" for="publish-email">Email</label>
+                    <input class="form-input" type="email" id="publish-email" name="email">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" onclick="closeModal('publishReportModal')">Cancel</button>
+                    <button type="submit" class="primary-btn"><i class="ti ti-send"></i> Publish and send</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="report-preview-overlay" id="reportPreviewOverlay">
+        <div class="report-preview-shell">
+            <div class="report-preview-header">
+                <div>
+                    <p class="report-preview-title" id="reportPreviewTitle">Report cards</p>
+                    <p class="report-preview-subtitle" id="reportPreviewSubtitle"></p>
+                </div>
+                <button type="button" class="icon-btn" id="reportPreviewClose" title="Close"><i class="ti ti-x"></i></button>
+            </div>
+            <div class="report-preview-tabs">
+                <button type="button" class="report-preview-tab active" data-preview-mode="individual">Individual</button>
+                <button type="button" class="report-preview-tab" data-preview-mode="all">All-in-One</button>
+            </div>
+            <div class="report-preview-body">
+                <aside class="report-student-panel">
+                    <div class="search-box report-search">
+                        <i class="ti ti-search"></i>
+                        <input type="search" id="reportStudentSearch" placeholder="Search">
+                    </div>
+                    <div class="report-student-list" id="reportStudentList"></div>
+                </aside>
+                <section class="report-document-area">
+                    <div class="report-document-actions">
+                        <span id="reportPageCount">1 Page</span>
+                        <button type="button" class="icon-btn" id="reportDownloadBtn" title="Download"><i class="ti ti-download"></i></button>
+                    </div>
+                    <div class="report-document" id="reportDocument"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmDeleteModal">
+        <div class="modal-dialog modal-dialog-narrow">
+            <div class="modal-header">
+                <p class="form-heading">Remove report?</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('confirmDeleteModal')"></i>
+            </div>
+            <p class="form-subheading" id="confirmDeleteText"></p>
+            <div class="form-actions">
+                <button type="button" class="secondary-btn" onclick="closeModal('confirmDeleteModal')">Cancel</button>
+                <button type="button" class="danger-btn" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/profile-modals.js') }}"></script>
+    <script>
+        const REPORT_URL_BASE = "/reports";
+        const SCHOOL_NAME = {{ school_name | tojson }};
+        const SCHOOL_INFO = {{ school_info | tojson }};
+        const CURRENT_TERM_NAME = {{ (current_term.name if current_term else "") | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/reports-actions.js') }}"></script>
+{% endblock %}

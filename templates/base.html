@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ school_name }}{% if page_title %} — {{ page_title }}{% endif %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="app-shell">
+
+    <!-- Top bar -->
+    <header class="topbar">
+        <div class="logo-badge">S</div>
+
+        <nav class="main-nav">
+            {% for item in nav_items %}
+                <a href="{{ url_for(item.endpoint) }}"
+                   class="nav-link {% if item.endpoint == active_endpoint %}active{% endif %}">
+                    {{ item.label }}
+                </a>
+            {% endfor %}
+        </nav>
+
+        <div class="term-pill">
+            <i class="ti ti-calendar-event"></i>
+            <span class="term-label">Term:</span>
+            {% if current_term %}
+                <span class="term-value">{{ current_term.name }}</span>
+            {% else %}
+                <span class="term-value">No active term</span>
+            {% endif %}
+            <i class="ti ti-chevron-down"></i>
+        </div>
+
+        <div class="profile-badge" id="profileBadge">
+            <div class="avatar">{{ user.initials }}</div>
+            <i class="ti ti-chevron-down"></i>
+
+            <div class="profile-menu" id="profileMenu">
+                <a href="#" class="profile-menu-item"><i class="ti ti-user"></i> Profile</a>
+                <a href="#" class="profile-menu-item"><i class="ti ti-settings"></i> Settings</a>
+                <a href="#" class="profile-menu-item"><i class="ti ti-switch-horizontal"></i> Switch profile</a>
+                <div class="profile-menu-divider"></div>
+                <a href="#" class="profile-menu-item"><i class="ti ti-logout"></i> Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="body-grid">
+
+        <!-- Sidebar: logo + calendar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-badge small">S</div>
+                <p class="school-name">{{ school_name }}</p>
+            </div>
+
+            <div class="calendar-card" id="calendarCard">
+                <!-- Populated by calendar.js -->
+            </div>
+        </aside>
+
+        <!-- Page content -->
+        <main class="content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-stack">
+                        {% for category, message in messages %}
+                            <div class="flash flash-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+</div>
+
+<script>
+    window.SCHOOL_EVENTS = {{ calendar_events|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/profile-menu.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

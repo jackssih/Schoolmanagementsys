@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <div class="profile-tabs">
+        <a href="{{ url_for('attendance') }}" class="profile-tab active">Attendance</a>
+        <a href="{{ url_for('events') }}" class="profile-tab">Events</a>
+    </div>
+
+    <div class="profiles-toolbar">
+        <div class="profiles-title">
+            <p class="profiles-heading">All Attendance</p>
+            <span class="count-badge">{{ records|length }}</span>
+        </div>
+
+        <div class="profiles-actions">
+            <form class="search-box" method="get" action="{{ url_for('attendance') }}">
+                <i class="ti ti-search"></i>
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <input type="search" name="q" value="{{ search_query }}" placeholder="Search">
+            </form>
+            <form class="sort-box" method="get" action="{{ url_for('attendance') }}">
+                {% if search_query %}
+                    <input type="hidden" name="q" value="{{ search_query }}">
+                {% endif %}
+                <label for="attendance-sort">Sort by</label>
+                <select id="attendance-sort" name="sort" onchange="this.form.submit()">
+                    {% for option in sort_options %}
+                        <option value="{{ option.value }}" {% if sort == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            <button type="button" class="primary-btn" onclick="openModal('attendanceAddModal')">
+                <i class="ti ti-plus"></i> Record attendance
+            </button>
+        </div>
+    </div>
+
+    <div class="profiles-table-wrap">
+        <table class="profiles-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Session</th>
+                    <th>Entity</th>
+                    <th>Attendances</th>
+                    <th class="col-action">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in records %}
+                    <tr>
+                        <td class="date-cell">{{ r.date }}</td>
+                        <td>{{ r.attendance_type }}</td>
+                        <td>{{ r.session }}</td>
+                        <td class="name-cell">{{ r.entity }}</td>
+                        <td>
+                            <button type="button" class="link-btn"
+                                    data-attendance-action="marks"
+                                    data-record="{{ r|tojson|forceescape }}">
+                                {{ r.attendance_label }}
+                            </button>
+                        </td>
+                        <td class="col-action">
+                            <div class="row-actions">
+                                <button type="button" class="icon-btn" title="View"
+                                        data-attendance-action="view"
+                                        data-record="{{ r|tojson|forceescape }}"><i class="ti ti-eye"></i></button>
+                                <button type="button" class="icon-btn icon-btn-danger" title="Delete"
+                                        data-attendance-action="delete"
+                                        data-form-id="attendance-delete-form-{{ r.id }}"
+                                        data-label="{{ r.entity }}"><i class="ti ti-trash"></i></button>
+                                <form id="attendance-delete-form-{{ r.id }}"
+                                      action="{{ url_for('delete_attendance', attendance_id=r.id) }}" method="post" hidden></form>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="modal-overlay" id="attendanceAddModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <p class="form-heading">Record attendance</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('attendanceAddModal')"></i>
+            </div>
+            <form class="modal-form" action="{{ url_for('new_attendance') }}" method="post">
+                <div class="form-group">
+                    <label class="form-label" for="attendance-date">Date</label>
+                    <input class="form-input date-picker" type="text" id="attendance-date" name="date" placeholder="DD-MM-YYYY">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="attendance-type">Type</label>
+                    <select class="form-input" id="attendance-type" name="attendance_type">
+                        {% for type in attendance_types %}
+                            <option value="{{ type }}">{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="attendance-session">Session</label>
+                    <select class="form-input" id="attendance-session" name="session">
+                        <option value="Day">Day</option>
+                        <option value="Period 1">Period 1</option>
+                        <option value="Period 2">Period 2</option>
+                        <option value="Period 3">Period 3</option>
+                        <option value="Period 4">Period 4</option>
+                        <option value="Period 5">Period 5</option>
+                        <option value="Period 6">Period 6</option>
+                    </select>
+                </div>
+                <div class="form-group attendance-entity-field" data-entity-field="Class">
+                    <label class="form-label" for="attendance-class">Class</label>
+                    <select class="form-input" id="attendance-class" name="class_name">
+                        <option value="">Choose class</option>
+                        {% for c in classes %}
+                            <option value="{{ c.name }}">{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group attendance-entity-field" data-entity-field="Subject" hidden>
+                    <label class="form-label" for="attendance-subject">Subject</label>
+                    <select class="form-input" id="attendance-subject" name="subject_id">
+                        <option value="">Choose subject</option>
+                        {% for subject in subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }} — {{ subject.class_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group attendance-entity-field" data-entity-field="Event" hidden>
+                    <label class="form-label" for="attendance-event">Event</label>
+                    <input class="form-input" type="text" id="attendance-event" name="event_name" placeholder="e.g. Parents meeting">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" onclick="closeModal('attendanceAddModal')">Cancel</button>
+                    <button type="submit" class="primary-btn"><i class="ti ti-check"></i> Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="attendanceMarksModal">
+        <div class="modal-dialog modal-dialog-wide">
+            <div class="modal-header">
+                <p class="form-heading" id="attendanceMarksTitle">Attendance</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('attendanceMarksModal')"></i>
+            </div>
+            <form class="modal-form" id="attendanceMarksForm" method="post">
+                <div class="form-group">
+                    <label class="form-label" for="attendance-mark-all">Mark all</label>
+                    <select class="form-input" id="attendance-mark-all">
+                        <option value="">Choose status</option>
+                        {% for status in attendance_statuses %}
+                            <option value="{{ status }}">{{ status }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="attendance-grid" id="attendanceGrid"></div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" id="attendanceResetBtn">Reset</button>
+                    <button type="submit" class="primary-btn"><i class="ti ti-check"></i> Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="attendanceViewModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <p class="form-heading" id="attendanceViewTitle">Attendance details</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('attendanceViewModal')"></i>
+            </div>
+            <div class="view-rows" id="attendanceViewBody"></div>
+            <div class="form-actions">
+                <button type="button" class="secondary-btn" onclick="closeModal('attendanceViewModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmDeleteModal">
+        <div class="modal-dialog modal-dialog-narrow">
+            <div class="modal-header">
+                <p class="form-heading">Remove attendance?</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('confirmDeleteModal')"></i>
+            </div>
+            <p class="form-subheading" id="confirmDeleteText"></p>
+            <div class="form-actions">
+                <button type="button" class="secondary-btn" onclick="closeModal('confirmDeleteModal')">Cancel</button>
+                <button type="button" class="danger-btn" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/date-picker.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/profile-modals.js') }}"></script>
+    <script>
+        const ATTENDANCE_URL_BASE = "/attendance";
+        const ATTENDANCE_STATUSES = {{ attendance_statuses|tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/attendance-actions.js') }}"></script>
+{% endblock %}

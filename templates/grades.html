@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <div class="profile-tabs">
+        <a href="{{ url_for('grades', tab='assessments') }}"
+           class="profile-tab {% if active_tab == 'assessments' %}active{% endif %}">Assessments</a>
+        <a href="{{ url_for('grades', tab='comments') }}"
+           class="profile-tab {% if active_tab == 'comments' %}active{% endif %}">Comments</a>
+    </div>
+
+    <div class="profiles-toolbar">
+        <div class="profiles-title">
+            <p class="profiles-heading">All {{ plural_label }}</p>
+            <span class="count-badge">{{ records|length }}</span>
+        </div>
+
+        <div class="profiles-actions">
+            <form class="search-box" method="get" action="{{ url_for('grades') }}">
+                <i class="ti ti-search"></i>
+                <input type="hidden" name="tab" value="{{ active_tab }}">
+                {% if active_tab == 'assessments' %}
+                    <input type="hidden" name="sort" value="{{ sort }}">
+                {% endif %}
+                <input type="search" name="q" value="{{ search_query }}" placeholder="Search">
+            </form>
+            {% if active_tab == 'assessments' %}
+                <form class="sort-box" method="get" action="{{ url_for('grades') }}">
+                    <input type="hidden" name="tab" value="assessments">
+                    {% if search_query %}
+                        <input type="hidden" name="q" value="{{ search_query }}">
+                    {% endif %}
+                    <label for="assessment-sort">Sort by</label>
+                    <select id="assessment-sort" name="sort" onchange="this.form.submit()">
+                        {% for option in sort_options %}
+                            <option value="{{ option.value }}" {% if sort == option.value %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            {% endif %}
+            <button type="button" class="primary-btn"
+                    onclick="openModal('{{ active_tab }}AddModal')">
+                <i class="ti ti-plus"></i> Add {{ singular_label }}
+            </button>
+        </div>
+    </div>
+
+    <div class="profiles-table-wrap">
+        <table class="profiles-table">
+            <thead>
+                {% if active_tab == 'comments' %}
+                    <tr>
+                        <th>Student</th>
+                        <th>Class</th>
+                        <th>Type</th>
+                        <th>Comment</th>
+                        <th>Teacher</th>
+                        <th class="col-action">Actions</th>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <th>Date</th>
+                        <th>Subject</th>
+                        <th>Type</th>
+                        <th>Maximum</th>
+                        <th>Recorded results</th>
+                        <th class="col-action">Actions</th>
+                    </tr>
+                {% endif %}
+            </thead>
+            <tbody>
+                {% for r in records %}
+                    {% if active_tab == 'comments' %}
+                        <tr>
+                            <td class="name-cell">{{ r.student_name }}</td>
+                            <td>{{ r.class_name }}</td>
+                            <td>{{ r.comment_type }}</td>
+                            <td class="comment-cell">{{ r.comment }}</td>
+                            <td>{{ r.teacher or "—" }}</td>
+                            <td class="col-action">
+                                <div class="row-actions">
+                                    <button type="button" class="icon-btn" title="Edit"
+                                            data-grade-action="edit-comment"
+                                            data-record="{{ r|tojson|forceescape }}"><i class="ti ti-edit"></i></button>
+                                    <button type="button" class="icon-btn icon-btn-danger" title="Delete"
+                                            data-grade-action="delete"
+                                            data-form-id="comment-delete-form-{{ r.id }}"
+                                            data-label="this comment"><i class="ti ti-trash"></i></button>
+                                    <form id="comment-delete-form-{{ r.id }}"
+                                          action="{{ url_for('delete_grade_comment', comment_id=r.id) }}" method="post" hidden></form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td class="date-cell">{{ r.date }}</td>
+                            <td class="name-cell">
+                                {{ r.subject }}
+                                <span class="table-subtext">{{ r.class_name }} · {{ r.level }}</span>
+                            </td>
+                            <td>{{ r.assessment_type }}</td>
+                            <td>{{ r.maximum }}</td>
+                            <td>
+                                <button type="button" class="link-btn"
+                                        data-grade-action="results"
+                                        data-record="{{ r|tojson|forceescape }}">
+                                    {{ r.recorded_label }}
+                                </button>
+                            </td>
+                            <td class="col-action">
+                                <div class="row-actions">
+                                    <button type="button" class="icon-btn" title="Edit"
+                                            data-grade-action="edit-assessment"
+                                            data-record="{{ r|tojson|forceescape }}"><i class="ti ti-edit"></i></button>
+                                    <button type="button" class="icon-btn icon-btn-danger" title="Delete"
+                                            data-grade-action="delete"
+                                            data-form-id="assessment-delete-form-{{ r.id }}"
+                                            data-label="{{ r.subject }}"><i class="ti ti-trash"></i></button>
+                                    <form id="assessment-delete-form-{{ r.id }}"
+                                          action="{{ url_for('delete_assessment', assessment_id=r.id) }}" method="post" hidden></form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="modal-overlay" id="assessmentsAddModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <p class="form-heading">Add assessment</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('assessmentsAddModal')"></i>
+            </div>
+            <form class="modal-form" action="{{ url_for('new_assessment') }}" method="post">
+                <div class="form-group">
+                    <label class="form-label" for="assessment-date">Date</label>
+                    <input class="form-input date-picker" type="text" id="assessment-date" name="date" placeholder="DD-MM-YYYY">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="assessment-subject">Subject</label>
+                    <select class="form-input" id="assessment-subject" name="subject_id">
+                        <option value="">Choose subject</option>
+                        {% for subject in subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }} — {{ subject.class_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="assessment-type">Type</label>
+                    <select class="form-input" id="assessment-type" name="assessment_type">
+                        <option value="">Choose type</option>
+                        {% for type in assessment_types %}
+                            <option value="{{ type }}">{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="assessment-maximum">Maximum</label>
+                    <input class="form-input" type="number" id="assessment-maximum" name="maximum" value="100" min="1">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" onclick="closeModal('assessmentsAddModal')">Cancel</button>
+                    <button type="submit" class="primary-btn"><i class="ti ti-check"></i> Add assessment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="commentsAddModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <p class="form-heading">Add comment</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('commentsAddModal')"></i>
+            </div>
+            <form class="modal-form" action="{{ url_for('new_grade_comment') }}" method="post">
+                <div class="form-group">
+                    <label class="form-label" for="comment-student">Student</label>
+                    <select class="form-input" id="comment-student" name="student_id">
+                        <option value="">Choose student</option>
+                        {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.name }} — {{ student.enrolled_class or "Not enrolled" }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="comment-type">Type</label>
+                    <select class="form-input" id="comment-type" name="comment_type">
+                        <option value="">Choose type</option>
+                        <option value="Class teacher">Class teacher</option>
+                        <option value="Head teacher">Head teacher</option>
+                    </select>
+                    <p class="form-hint">For an Other subject's teacher's assessment, add it against that subject's assessment result instead — it can then differ per B.O.T./Mid/E.O.T.</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="comment-teacher">Teacher</label>
+                    <select class="form-input" id="comment-teacher" name="teacher">
+                        <option value="">No teacher selected</option>
+                        {% for teacher in teachers %}
+                            <option value="{{ teacher }}">{{ teacher }}</option>
+                        {% endfor %}
+                        <option value="Taaka Beatrice">Taaka Beatrice</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="comment-text">Comment</label>
+                    <textarea class="form-input form-textarea" id="comment-text" name="comment"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" onclick="closeModal('commentsAddModal')">Cancel</button>
+                    <button type="submit" class="primary-btn"><i class="ti ti-check"></i> Add comment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="assessmentEditModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <p class="form-heading">Edit assessment</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('assessmentEditModal')"></i>
+            </div>
+            <form class="modal-form" id="assessmentEditForm" method="post">
+                <div class="form-group">
+                    <label class="form-label" for="assessment-edit-date">Date</label>
+                    <input class="form-input date-picker" type="text" id="assessment-edit-date" name="date">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="assessment-edit-subject">Subject</label>
+                    <select class="form-input" id="assessment-edit-subject" name="subject_id">
+                        {% for subject in subjects %}
+                            <option value="{{ subject.id }}" data-subject-name="{{ subject.name }}" data-class-name="{{ subject.class_name }}">{{ subject.name }} — {{ subject.class_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="assessment-edit-type">Type</label>
+                    <select class="form-input" id="assessment-edit-type" name="assessment_type">
+                        {% for type in assessment_types %}
+                            <option value="{{ type }}">{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="assessment-edit-maximum">Maximum</label>
+                    <input class="form-input" type="number" id="assessment-edit-maximum" name="maximum" min="1">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" onclick="closeModal('assessmentEditModal')">Cancel</button>
+                    <button type="submit" class="primary-btn"><i class="ti ti-check"></i> Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="commentEditModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <p class="form-heading">Edit comment</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('commentEditModal')"></i>
+            </div>
+            <form class="modal-form" id="commentEditForm" method="post">
+                <div class="form-group">
+                    <label class="form-label" for="comment-edit-student">Student</label>
+                    <select class="form-input" id="comment-edit-student" name="student_id">
+                        {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.name }} — {{ student.enrolled_class or "Not enrolled" }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="comment-edit-type">Type</label>
+                    <select class="form-input" id="comment-edit-type" name="comment_type">
+                        <option value="Class teacher">Class teacher</option>
+                        <option value="Head teacher">Head teacher</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="comment-edit-teacher">Teacher</label>
+                    <select class="form-input" id="comment-edit-teacher" name="teacher">
+                        <option value="">No teacher selected</option>
+                        {% for teacher in teachers %}
+                            <option value="{{ teacher }}">{{ teacher }}</option>
+                        {% endfor %}
+                        <option value="Taaka Beatrice">Taaka Beatrice</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="comment-edit-text">Comment</label>
+                    <textarea class="form-input form-textarea" id="comment-edit-text" name="comment"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" onclick="closeModal('commentEditModal')">Cancel</button>
+                    <button type="submit" class="primary-btn"><i class="ti ti-check"></i> Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal-dialog modal-dialog-wide">
+            <div class="modal-header">
+                <p class="form-heading" id="resultsModalTitle">Recorded results</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('resultsModal')"></i>
+            </div>
+            <form class="modal-form" id="resultsForm" method="post">
+                <div class="results-grid" id="resultsGrid"></div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" onclick="closeModal('resultsModal')">Cancel</button>
+                    <button type="submit" class="primary-btn"><i class="ti ti-check"></i> Save results</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmDeleteModal">
+        <div class="modal-dialog modal-dialog-narrow">
+            <div class="modal-header">
+                <p class="form-heading">Remove record?</p>
+                <i class="ti ti-x modal-close" onclick="closeModal('confirmDeleteModal')"></i>
+            </div>
+            <p class="form-subheading" id="confirmDeleteText"></p>
+            <div class="form-actions">
+                <button type="button" class="secondary-btn" onclick="closeModal('confirmDeleteModal')">Cancel</button>
+                <button type="button" class="danger-btn" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/date-picker.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/profile-modals.js') }}"></script>
+    <script>
+        const ASSESSMENT_URL_BASE = "/grades/assessments";
+        const COMMENT_URL_BASE = "/grades/comments";
+    </script>
+    <script src="{{ url_for('static', filename='js/grades-actions.js') }}"></script>
+{% endblock %}

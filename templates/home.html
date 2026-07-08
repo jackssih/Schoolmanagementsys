@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <p class="section-label">Overview</p>
+    <div class="stats-grid">
+        {% for stat in stats %}
+            <div class="stat-card">
+                <p class="stat-label">{{ stat.label }}</p>
+                <p class="stat-value">{{ stat.value }}</p>
+            </div>
+        {% endfor %}
+    </div>
+
+    <p class="section-label">Quick access</p>
+    <div class="quick-actions-grid">
+        {% for action in quick_actions %}
+            <a href="{{ url_for(action.endpoint) }}" class="quick-action-card">
+                <i class="ti {{ action.icon }} quick-action-icon"></i>
+                <p class="quick-action-title">{{ action.title }}</p>
+                <p class="quick-action-subtitle">{{ action.subtitle }}</p>
+            </a>
+        {% endfor %}
+    </div>
+
+    <p class="section-label">Upcoming events</p>
+    <div class="events-list">
+        {% for event in events %}
+            <div class="event-row">
+                <i class="ti {{ event.icon }}"></i>
+                <p class="event-title">{{ event.title }}</p>
+                <span class="event-date">{{ event.date_label }}</span>
+            </div>
+        {% endfor %}
+    </div>
+
+{% endblock %}
